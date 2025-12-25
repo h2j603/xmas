@@ -4,15 +4,15 @@ let tiles = [];
 let zoom = 1.0;
 let offset;
 let isFontLoaded = false;
-let isSaving = false;
 
 // 효과 토글
-let showLine = false;
+let showWeb = false;
 let showRotate = false;
+let showPulse = false;
 
 // 저장된 설정값
 let currentFontSize = 75;
-let currentTileSize = 12;
+let currentTileSize = 5;
 
 function setup() {
     const w = parseInt(select('#canvasW').value());
@@ -51,26 +51,33 @@ function setup() {
     
     // 토글 버튼
     select('#toggleLine').mousePressed(() => {
-        showLine = !showLine;
-        if (showLine) {
-            select('#toggleLine').addClass('active');
-        } else {
-            select('#toggleLine').removeClass('active');
-        }
+        showWeb = !showWeb;
+        toggleClass('#toggleLine', showWeb);
     });
     
     select('#toggleRotate').mousePressed(() => {
         showRotate = !showRotate;
-        if (showRotate) {
-            select('#toggleRotate').addClass('active');
-        } else {
-            select('#toggleRotate').removeClass('active');
-        }
+        toggleClass('#toggleRotate', showRotate);
+    });
+    
+    select('#togglePulse').mousePressed(() => {
+        showPulse = !showPulse;
+        toggleClass('#togglePulse', showPulse);
     });
 }
 
+function toggleClass(selector, isActive) {
+    if (isActive) {
+        select(selector).addClass('active');
+    } else {
+        select(selector).removeClass('active');
+    }
+}
+
 function draw() {
-    background(0);
+    // 배경색 적용
+    let bgColor = select('#bgColor').value();
+    background(bgColor);
     
     if (!isFontLoaded) {
         fill(255);
@@ -91,9 +98,9 @@ function draw() {
         textFont('sans-serif');
         text("1. SELECT PHOTO\n2. CLICK CONVERT", width/2, height/2);
     } else if (tiles.length > 0) {
-        // 연결선 그리기
-        if (showLine) {
-            drawConnectLines();
+        // 거미줄 효과 (타일 뒤에)
+        if (showWeb) {
+            drawWebLines();
         }
         
         // 타일 그리기
@@ -103,32 +110,66 @@ function draw() {
     pop();
 }
 
-function drawConnectLines() {
+function drawWebLines() {
     let lineColor = select('#lineColor').value();
     stroke(lineColor);
-    strokeWeight(1);
-    noFill();
+    strokeWeight(0.5);
     
-    beginShape();
-    for (let t of tiles) {
-        vertex(t.x, t.y);
+    // 가까운 점들끼리 연결 (거미줄 효과)
+    let maxDist = min(width, height) * 0.08;
+    
+    for (let i = 0; i < tiles.length; i++) {
+        let t1 = tiles[i];
+        
+        // 각 타일에서 가장 가까운 3~5개 점과 연결
+        let connections = 0;
+        for (let j = i + 1; j < tiles.length && connections < 4; j++) {
+            let t2 = tiles[j];
+            let d = dist(t1.x, t1.y, t2.x, t2.y);
+            
+            if (d < maxDist) {
+                // 거리에 따라 투명도 조절
+                let alpha = map(d, 0, maxDist, 200, 30);
+                stroke(red(color(lineColor)), green(color(lineColor)), blue(color(lineColor)), alpha);
+                line(t1.x, t1.y, t2.x, t2.y);
+                connections++;
+            }
+        }
+        
+        // 랜덤하게 먼 점과도 가끔 연결 (별자리 느낌)
+        randomSeed(i * 100);
+        if (random(1) < 0.05) {
+            let randomIdx = floor(random(tiles.length));
+            let t2 = tiles[randomIdx];
+            stroke(red(color(lineColor)), green(color(lineColor)), blue(color(lineColor)), 50);
+            line(t1.x, t1.y, t2.x, t2.y);
+        }
     }
-    endShape(CLOSE);
 }
 
 function drawTiles() {
+    let baseTileSize = min(width, height) * (currentTileSize / 100);
+    
     for (let i = 0; i < tiles.length; i++) {
         let t = tiles[i];
+        let tileSize = baseTileSize;
+        
+        // 펄스 효과
+        if (showPulse) {
+            let pulse = sin(frameCount * 0.05 + i * 0.3) * 0.3 + 1;
+            tileSize *= pulse;
+        }
         
         push();
         translate(t.x, t.y);
         
+        // 랜덤 회전 효과
         if (showRotate) {
             randomSeed(i);
-            rotate(random(-0.3, 0.3));
+            rotate(random(-0.4, 0.4));
         }
         
-        image(img, -currentTileSize/2, -currentTileSize/2, currentTileSize, currentTileSize);
+        image(img, -tileSize/2, -tileSize/2, tileSize, tileSize);
         pop();
     }
 }
@@ -149,6 +190,7 @@ function generateDisplay() {
     currentTileSize = parseInt(select('#tileSize').value());
     
     let fontSize = min(width, height) * (currentFontSize / 100);
+    let baseTileSize = min(width, height) * (currentTileSize / 100);
     
     // 텍스트 위치 계산
     let bounds = myFont.textBounds(txt, 0, 0, fontSize);
@@ -156,7 +198,7 @@ function generateDisplay() {
     let startY = (height + bounds.h) / 2 - bounds.y - bounds.h;
     
     // sampleFactor를 타일 크기에 맞게 조절
-    let density = map(currentTileSize, 4, 40, 0.4, 0.05);
+    let density = map(currentTileSize, 1, 20, 0.5, 0.03);
     
     // 윤곽선 포인트 추출
     let outlinePoints = myFont.textToPoints(txt, startX, startY, fontSize, {
@@ -187,7 +229,6 @@ function hidePreview() {
 }
 
 function saveImage() {
-    isSaving = true;
     saveCanvas('TEXT_MOSAIC', 'png');
     updateStatus("이미지 저장됨!");
 }
@@ -220,7 +261,6 @@ function updateCanvas() {
 }
 
 function mouseWheel(event) {
-    // 프리뷰 모드에서만 줌
     if (!select('#fullscreen-view').hasClass('hidden')) {
         zoom -= event.delta * 0.001;
         zoom = constrain(zoom, 0.1, 5);
