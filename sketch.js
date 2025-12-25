@@ -36,6 +36,13 @@ const fontURLs = {
     pacifico: 'https://fonts.gstatic.com/s/pacifico/v22/FwZY7-Qmy14u9lezJ96A4sijpFu_.ttf'
 };
 
+function preload() {
+    // preload에서 폰트 미리 로드
+    for (let key in fontURLs) {
+        fonts[key] = loadFont(fontURLs[key]);
+    }
+}
+
 function setup() {
     const w = parseInt(select('#canvasW').value());
     const h = parseInt(select('#canvasH').value());
@@ -46,22 +53,9 @@ function setup() {
     textCenterX = w / 2;
     textCenterY = h / 2;
     
-    // 모든 폰트 로드
-    for (let key in fontURLs) {
-        fonts[key] = loadFont(fontURLs[key], 
-            () => { 
-                fontsLoaded++;
-                if (fontsLoaded === totalFonts) {
-                    currentFont = fonts['roboto'];
-                    updateStatus("폰트 로드 완료");
-                }
-            },
-            () => { 
-                fontsLoaded++;
-                updateStatus("일부 폰트 로드 실패");
-            }
-        );
-    }
+    // 기본 폰트 설정
+    currentFont = fonts['roboto'];
+    updateStatus("준비 완료");
     
     // 버튼 이벤트
     select('#convertBtn').mousePressed(generateDisplay);
@@ -76,6 +70,7 @@ function setup() {
     select('#fontSelect').changed(() => {
         let selected = select('#fontSelect').value();
         currentFont = fonts[selected];
+        updateStatus("폰트 변경: " + selected);
     });
     
     // 슬라이더 값 표시
@@ -124,11 +119,11 @@ function draw() {
     let bgColor = select('#bgColor').value();
     background(bgColor);
     
-    if (fontsLoaded < totalFonts) {
+    if (!currentFont) {
         fill(255);
         textAlign(CENTER, CENTER);
         textFont('sans-serif');
-        text("LOADING FONTS... " + fontsLoaded + "/" + totalFonts, width/2, height/2);
+        text("LOADING FONTS...", width/2, height/2);
         return;
     }
 
@@ -226,7 +221,7 @@ function drawTiles() {
 
 function generateDisplay() {
     if (!currentFont) {
-        updateStatus("에러: 폰트 없음");
+        updateStatus("에러: 폰트 로드 중...");
         return;
     }
     
@@ -234,6 +229,8 @@ function generateDisplay() {
         updateStatus("이미지를 먼저 선택하세요!");
         return;
     }
+    
+    updateStatus("변환 중...");
     
     let txt = document.getElementById('textInput').value || "A";
     let lines = txt.split('\n');
@@ -262,9 +259,14 @@ function generateDisplay() {
         let chars = lineTxt.split('');
         let totalWidth = 0;
         
+        // 전체 너비 계산
         for (let c = 0; c < chars.length; c++) {
-            let charBounds = currentFont.textBounds(chars[c], 0, 0, fontSize);
-            totalWidth += charBounds.w * (currentScaleX / 100);
+            if (chars[c] === ' ') {
+                totalWidth += fontSize * 0.3 * (currentScaleX / 100);
+            } else {
+                let charBounds = currentFont.textBounds(chars[c], 0, 0, fontSize);
+                totalWidth += charBounds.w * (currentScaleX / 100);
+            }
             if (c < chars.length - 1) {
                 totalWidth += currentLetterSpace;
             }
@@ -310,7 +312,7 @@ function generateDisplay() {
     }
     
     if (tiles.length === 0) {
-        updateStatus("에러: 포인트 추출 실패");
+        updateStatus("에러: 포인트 추출 실패 (다른 폰트 시도)");
         return;
     }
     
