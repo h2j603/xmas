@@ -25,6 +25,13 @@
                         <label>TEXT</label>
                         <input type="text" id="textInput" value="A">
                     </div>
+                </div>
+
+                <div class="input-row">
+                    <div class="field color-field">
+                        <label>CANVAS</label>
+                        <input type="color" id="bgColor" value="#000000">
+                    </div>
                     <div class="field color-field">
                         <label>LINE</label>
                         <input type="color" id="lineColor" value="#FFFFFF">
@@ -40,8 +47,8 @@
 
                 <div class="input-row">
                     <div class="field">
-                        <label>TILE SIZE: <span id="tileSizeVal">12</span>px</label>
-                        <input type="range" id="tileSize" min="4" max="40" value="12">
+                        <label>TILE SIZE: <span id="tileSizeVal">5</span>%</label>
+                        <input type="range" id="tileSize" min="1" max="20" value="5">
                     </div>
                 </div>
 
@@ -49,8 +56,9 @@
                     <div class="field">
                         <label>EFFECTS</label>
                         <div class="toggle-group">
-                            <button id="toggleLine" class="toggle-btn">CONNECT LINE</button>
+                            <button id="toggleLine" class="toggle-btn">WEB</button>
                             <button id="toggleRotate" class="toggle-btn">ROTATE</button>
+                            <button id="togglePulse" class="toggle-btn">PULSE</button>
                         </div>
                     </div>
                 </div>
