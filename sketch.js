@@ -13,15 +13,20 @@ function setup() {
     
     offset = createVector(0, 0);
     
-    // 폰트 로드
-    const fontURL = 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/Roboto-Regular.ttf';
+    // 폰트 로드 (작동하는 URL)
+    const fontURL = 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf';
     myFont = loadFont(fontURL, 
-        () => { isFontLoaded = true; console.log("Font Ready"); },
-        () => { isFontLoaded = true; console.log("Font Fail - Use Default"); }
+        () => { 
+            isFontLoaded = true; 
+            console.log("Font Ready"); 
+        },
+        (err) => { 
+            console.error("Font Load Error:", err);
+        }
     );
     
     // UI 이벤트
-    select('#convertBtn').mousePressed(generateCachedPoints); // 변환 버튼 클릭 시에만 실행
+    select('#convertBtn').mousePressed(generateCachedPoints);
     select('#resizeBtn').mousePressed(updateCanvas);
     select('#saveBtn').mousePressed(() => saveCanvas('AOYSTU_GEN', 'png'));
     select('#imageInput').changed(handleImage);
@@ -68,7 +73,10 @@ function draw() {
 }
 
 function generateCachedPoints() {
-    if (!isFontLoaded) return;
+    if (!isFontLoaded || !myFont) {
+        console.log("Font not ready");
+        return;
+    }
     
     let txt = select('#textInput').value() || " ";
     let fontSize = min(width, height) * 0.6;
@@ -78,6 +86,8 @@ function generateCachedPoints() {
         sampleFactor: 0.15, 
         simplifyThreshold: 0
     });
+    
+    console.log("Points generated:", pts.length);
 
     // 이미지 픽셀 데이터 로드 확인
     if (img) {
@@ -88,7 +98,7 @@ function generateCachedPoints() {
         let clr = [80, 80, 80]; // 기본 회색
         
         if (img && img.width > 0) {
-            // 캔버스 좌표를 이미지 좌표로 맵핑 (안전하게 계산)
+            // 캔버스 좌표를 이미지 좌표로 맵핑
             let imgX = floor(map(p.x, 0, width, 0, img.width));
             let imgY = floor(map(p.y, 0, height, 0, img.height));
             
@@ -124,9 +134,21 @@ function handleImage(e) {
 
 function updateCanvas() {
     resizeCanvas(parseInt(select('#canvasW').value()), parseInt(select('#canvasH').value()));
-    cachedPoints = []; // 캔버스 크기 변경 시 초기화
+    cachedPoints = [];
 }
 
-// 인터랙션 로직은 동일
-function mouseWheel(event) { if (mouseY < height) { zoom -= event.delta * 0.001; zoom = constrain(zoom, 0.1, 5); return false; } }
-function mouseDragged() { if (mouseY < height) { offset.x += mouseX - pmouseX; offset.y += mouseY - pmouseY; } }
+// 인터랙션
+function mouseWheel(event) { 
+    if (mouseY < height) { 
+        zoom -= event.delta * 0.001; 
+        zoom = constrain(zoom, 0.1, 5); 
+        return false; 
+    } 
+}
+
+function mouseDragged() { 
+    if (mouseY < height) { 
+        offset.x += mouseX - pmouseX; 
+        offset.y += mouseY - pmouseY; 
+    } 
+}
