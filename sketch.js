@@ -1,132 +1,107 @@
 let myFont;
 let img;
-let points = [];
+let cachedPoints = []; // 최적화의 핵심: 좌표와 색상을 미리 계산해 저장
 let zoom = 1.0;
 let offset;
-let canvas;
-
-// UI Elements
-let textInput, canvasW, canvasH, vertexColor, resizeBtn, saveBtn, imageInput;
 
 function preload() {
-    // Using a default Google Font (Roboto) as a proxy for the web font
+    // textToPoints 구동을 위한 최소한의 가벼운 폰트 로드
     myFont = loadFont('https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/Roboto-Regular.ttf');
 }
 
 function setup() {
-    const holder = select('#canvas-holder');
     const w = parseInt(select('#canvasW').value());
     const h = parseInt(select('#canvasH').value());
-    
-    canvas = createCanvas(w, h);
-    canvas.parent(holder);
+    let canvas = createCanvas(w, h);
+    canvas.parent('canvas-holder');
     
     offset = createVector(0, 0);
     
-    // UI Connections
-    textInput = select('#textInput');
-    canvasW = select('#canvasW');
-    canvasH = select('#canvasH');
-    vertexColor = select('#vertexColor');
-    resizeBtn = select('#resizeBtn');
-    saveBtn = select('#saveBtn');
-    imageInput = select('#imageInput');
-
-    resizeBtn.mousePressed(handleResize);
-    saveBtn.mousePressed(() => saveCanvas('myGraphic', 'png'));
-    imageInput.changed(handleImage);
-
-    generatePoints();
+    // UI 이벤트 바인딩
+    select('#resizeBtn').mousePressed(updateCanvas);
+    select('#saveBtn').mousePressed(() => saveCanvas('output', 'png'));
+    select('#imageInput').changed(handleImage);
+    select('#textInput').input(generateCachedPoints); // 텍스트 입력 시 즉시 갱신
+    
+    generateCachedPoints();
 }
 
 function draw() {
-    background(20);
-
+    background(0);
+    
     push();
-    // Zoom and Pan transformations
-    translate(width / 2 + offset.x, height / 2 + offset.y);
+    translate(width/2 + offset.x, height/2 + offset.y);
     scale(zoom);
-    translate(-width / 2, -height / 2);
+    translate(-width/2, -height/2);
 
-    if (img) {
-        // Draw the points composed of the image
+    // 연산 없이 저장된 점들만 빠르게 렌더링
+    for (let p of cachedPoints) {
         noStroke();
-        for (let i = 0; i < points.length; i++) {
-            let p = points[i];
-            
-            // Sample color from image based on point coordinate
-            // Mapping canvas space to image space
-            let imgX = map(p.x, width/4, width*0.75, 0, img.width);
-            let imgY = map(p.y, height/4, height*0.75, 0, img.height);
-            let c = img.get(imgX, imgY);
-            
-            fill(c);
-            circle(p.x, p.y, 4); // The "Method B" circles
+        fill(p.clr);
+        circle(p.x, p.y, p.size);
 
-            // Random decorative points (approx. 5% of total points)
-            // Using seed for consistency during draw loops
-            randomSeed(i); 
-            if (random(1) < 0.05) {
-                fill(vertexColor.value());
-                circle(p.x, p.y, 8);
-                fill(255);
-                textSize(8);
-                textAlign(CENTER, CENTER);
-                text(i, p.x, p.y - 10);
-            }
+        if (p.isDecor) {
+            stroke(select('#vertexColor').value());
+            strokeWeight(1);
+            noFill();
+            circle(p.x, p.y, p.size * 2.5);
+            
+            noStroke();
+            fill(255);
+            textSize(10);
+            text(p.id, p.x + 10, p.y);
         }
-    } else {
-        // Placeholder text if no image uploaded
-        fill(100);
-        textAlign(CENTER, CENTER);
-        text("Please upload an image to see the effect", width/2, height/2);
     }
     pop();
 }
 
-function generatePoints() {
-    // Converts text to a path of points
-    points = myFont.textToPoints(textInput.value(), width / 6, height / 1.8, 150, {
-        sampleFactor: 0.15, // Density of points
+// 핵심 최적화 함수: 점의 좌표와 해당 위치의 색상을 미리 계산
+function generateCachedPoints() {
+    let txt = select('#textInput').value() || " ";
+    let pts = myFont.textToPoints(txt, width * 0.1, height * 0.6, width * 0.4, {
+        sampleFactor: 0.12, 
         simplifyThreshold: 0
+    });
+
+    cachedPoints = pts.map((p, i) => {
+        let clr = [150, 150, 150]; // 기본 색상 (이미지 없을 때)
+        if (img) {
+            let imgX = map(p.x, 0, width, 0, img.width);
+            let imgY = map(p.y, 0, height, 0, img.height);
+            clr = img.get(imgX, imgY);
+        }
+        
+        // 장식 여부를 미리 결정
+        randomSeed(i);
+        let isDecor = random(1) < 0.05;
+
+        return { x: p.x, y: p.y, clr: clr, isDecor: isDecor, id: i, size: 5 };
     });
 }
 
-function handleResize() {
-    const w = parseInt(canvasW.value());
-    const h = parseInt(canvasH.value());
-    resizeCanvas(w, h);
-    generatePoints();
+function updateCanvas() {
+    resizeCanvas(parseInt(select('#canvasW').value()), parseInt(select('#canvasH').value()));
+    generateCachedPoints();
 }
 
 function handleImage(e) {
     if (e.target.files.length > 0) {
-        let file = e.target.files[0];
-        img = loadImage(URL.createObjectURL(file), () => {
-            generatePoints();
-        });
+        img = loadImage(URL.createObjectURL(e.target.files[0]), generateCachedPoints);
     }
 }
 
-// Interaction: Zoom
+// 터치 및 마우스 인터랙션
 function mouseWheel(event) {
-    if (mouseX > 260) { // Only zoom if mouse is over canvas area
-        let zoomAmount = -event.delta * 0.001;
-        zoom += zoomAmount;
-        zoom = constrain(zoom, 0.1, 5.0);
+    if (mouseY < height) {
+        zoom -= event.delta * 0.001;
+        zoom = constrain(zoom, 0.1, 10);
         return false;
     }
 }
 
-// Interaction: Pan (Drag)
 function mouseDragged() {
-    if (mouseX > 260) {
+    if (mouseY < height) {
         offset.x += mouseX - pmouseX;
         offset.y += mouseY - pmouseY;
     }
-}
-
-// Update points when text changes
-function keyReleased() {
-    generatePoints();
 }
