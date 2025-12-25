@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vertex Editor - Debug Mode</title>
+    <title>Text Mosaic Generator</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
 </head>
@@ -16,16 +16,40 @@
                 <div class="input-row">
                     <div class="field">
                         <label>TEXT</label>
-                        <input type="text" id="textInput" value="爀">
+                        <input type="text" id="textInput" value="A">
                     </div>
                     <div class="field color-field">
-                        <label>COLOR</label>
-                        <input type="color" id="vertexColor" value="#00FF00">
+                        <label>LINE</label>
+                        <input type="color" id="lineColor" value="#FFFFFF">
                     </div>
                 </div>
 
                 <div class="input-row">
-                    <button id="convertBtn" class="btn-ui primary-accent">CONVERT (변환)</button>
+                    <div class="field">
+                        <label>TEXT SIZE: <span id="fontSizeVal">75</span>%</label>
+                        <input type="range" id="fontSize" min="20" max="150" value="75">
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <div class="field">
+                        <label>TILE SIZE: <span id="tileSizeVal">12</span>px</label>
+                        <input type="range" id="tileSize" min="4" max="40" value="12">
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <div class="field">
+                        <label>EFFECTS</label>
+                        <div class="toggle-group">
+                            <button id="toggleLine" class="toggle-btn">CONNECT LINE</button>
+                            <button id="toggleRotate" class="toggle-btn">ROTATE</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <button id="convertBtn" class="btn-ui primary-accent">CONVERT</button>
                 </div>
 
                 <div class="input-row">
@@ -46,7 +70,7 @@
                     <button id="saveBtn" class="btn-ui">SAVE IMAGE</button>
                 </div>
                 
-                <p id="info-text" class="status-msg">1. 사진 선택 -> 2. 변환 버튼 클릭</p>
+                <p id="info-text" class="status-msg">1. 사진 선택 → 2. 변환 버튼</p>
                 <div class="safe-area-padding"></div>
             </div>
         </section>
