@@ -1,9 +1,11 @@
-let myFont;
+let fonts = {};
+let currentFont = null;
 let img;
 let tiles = [];
 let zoom = 1.0;
 let offset;
-let isFontLoaded = false;
+let fontsLoaded = 0;
+const totalFonts = 4;
 
 // 효과 토글
 let showWeb = false;
@@ -23,9 +25,16 @@ let textCenterY = 0;
 
 // 비디오 녹화
 let isRecording = false;
-let recordedFrames = [];
 let mediaRecorder = null;
 let recordedChunks = [];
+
+// 폰트 URL
+const fontURLs = {
+    roboto: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf',
+    playfair: 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgEM86xQ.ttf',
+    bebas: 'https://fonts.gstatic.com/s/bebasneue/v9/JTUSjIg69CK48gW7PXoo9Wlhyw.ttf',
+    pacifico: 'https://fonts.gstatic.com/s/pacifico/v22/FwZY7-Qmy14u9lezJ96A4sijpFu_.ttf'
+};
 
 function setup() {
     const w = parseInt(select('#canvasW').value());
@@ -37,25 +46,37 @@ function setup() {
     textCenterX = w / 2;
     textCenterY = h / 2;
     
-    const fontURL = 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf';
-    myFont = loadFont(fontURL, 
-        () => { 
-            isFontLoaded = true; 
-            updateStatus("폰트 로드 완료");
-        },
-        (err) => { 
-            updateStatus("폰트 로드 실패");
-        }
-    );
+    // 모든 폰트 로드
+    for (let key in fontURLs) {
+        fonts[key] = loadFont(fontURLs[key], 
+            () => { 
+                fontsLoaded++;
+                if (fontsLoaded === totalFonts) {
+                    currentFont = fonts['roboto'];
+                    updateStatus("폰트 로드 완료");
+                }
+            },
+            () => { 
+                fontsLoaded++;
+                updateStatus("일부 폰트 로드 실패");
+            }
+        );
+    }
     
     // 버튼 이벤트
     select('#convertBtn').mousePressed(generateDisplay);
     select('#resizeBtn').mousePressed(updateCanvas);
     select('#saveBtn').mousePressed(saveImage);
-    select('#saveVideoBtn').mousePressed(toggleRecording);
+    select('#saveVideoBtn').mousePressed(startRecording);
     select('#previewBtn').mousePressed(showPreview);
     select('#closeFullscreen').mousePressed(hidePreview);
     select('#imageInput').changed(handleImage);
+    
+    // 폰트 선택
+    select('#fontSelect').changed(() => {
+        let selected = select('#fontSelect').value();
+        currentFont = fonts[selected];
+    });
     
     // 슬라이더 값 표시
     select('#fontSize').input(() => {
@@ -103,11 +124,11 @@ function draw() {
     let bgColor = select('#bgColor').value();
     background(bgColor);
     
-    if (!isFontLoaded) {
+    if (fontsLoaded < totalFonts) {
         fill(255);
         textAlign(CENTER, CENTER);
         textFont('sans-serif');
-        text("LOADING FONT...", width/2, height/2);
+        text("LOADING FONTS... " + fontsLoaded + "/" + totalFonts, width/2, height/2);
         return;
     }
 
@@ -129,17 +150,6 @@ function draw() {
     }
     
     pop();
-    
-    // 녹화 상태 표시
-    if (isRecording) {
-        fill(255, 0, 0);
-        noStroke();
-        ellipse(20, 20, 15, 15);
-        fill(255);
-        textSize(12);
-        textAlign(LEFT, CENTER);
-        text("REC", 35, 20);
-    }
 }
 
 function drawWebLines() {
@@ -156,7 +166,6 @@ function drawWebLines() {
             let d = dist(t1.x, t1.y, t2.x, t2.y);
             
             if (d < maxDist) {
-                // 이미지에서 색상 추출
                 let midX = (t1.x + t2.x) / 2;
                 let midY = (t1.y + t2.y) / 2;
                 let lineClr = getImageColor(midX, midY);
@@ -216,7 +225,7 @@ function drawTiles() {
 }
 
 function generateDisplay() {
-    if (!isFontLoaded || !myFont) {
+    if (!currentFont) {
         updateStatus("에러: 폰트 없음");
         return;
     }
@@ -250,13 +259,11 @@ function generateDisplay() {
         let lineTxt = lines[lineIdx];
         if (lineTxt.trim() === '') continue;
         
-        // 자간 적용: 각 글자별로 처리
         let chars = lineTxt.split('');
         let totalWidth = 0;
         
-        // 전체 너비 계산
         for (let c = 0; c < chars.length; c++) {
-            let charBounds = myFont.textBounds(chars[c], 0, 0, fontSize);
+            let charBounds = currentFont.textBounds(chars[c], 0, 0, fontSize);
             totalWidth += charBounds.w * (currentScaleX / 100);
             if (c < chars.length - 1) {
                 totalWidth += currentLetterSpace;
@@ -267,7 +274,6 @@ function generateDisplay() {
         let y = startY + lineIdx * lineHeightPx;
         let currentX = startX;
         
-        // 각 글자별로 포인트 추출
         for (let c = 0; c < chars.length; c++) {
             let char = chars[c];
             if (char === ' ') {
@@ -275,15 +281,14 @@ function generateDisplay() {
                 continue;
             }
             
-            let charBounds = myFont.textBounds(char, 0, 0, fontSize);
+            let charBounds = currentFont.textBounds(char, 0, 0, fontSize);
             
-            let outlinePoints = myFont.textToPoints(char, 0, 0, fontSize, {
+            let outlinePoints = currentFont.textToPoints(char, 0, 0, fontSize, {
                 sampleFactor: density,
                 simplifyThreshold: 0
             });
             
             for (let p of outlinePoints) {
-                // 장평 적용
                 let scaledX = p.x * (currentScaleX / 100);
                 let finalX = currentX + scaledX;
                 let finalY = y + p.y;
@@ -341,20 +346,20 @@ function saveImage() {
     updateStatus("이미지 저장됨!");
 }
 
-function toggleRecording() {
+function startRecording() {
+    if (isRecording) {
+        updateStatus("이미 녹화 중입니다");
+        return;
+    }
+    
     if (!showPulse) {
         updateStatus("PULSE 모드를 켜야 비디오 저장 가능!");
         return;
     }
     
-    if (!isRecording) {
-        startRecording();
-    } else {
-        stopRecording();
-    }
-}
-
-function startRecording() {
+    let duration = parseInt(document.getElementById('videoDuration').value) || 3;
+    duration = constrain(duration, 1, 30);
+    
     let canvas = document.querySelector('#canvas-holder canvas');
     let stream = canvas.captureStream(30);
     
@@ -375,32 +380,24 @@ function startRecording() {
         a.download = 'TEXT_MOSAIC.webm';
         a.click();
         URL.revokeObjectURL(url);
+        isRecording = false;
+        select('#saveVideoBtn').html('REC');
         updateStatus("비디오 저장됨!");
     };
     
-    // 뷰 초기화
     offset = createVector(0, 0);
     zoom = 1.0;
     
     mediaRecorder.start();
     isRecording = true;
-    select('#saveVideoBtn').html('STOP REC');
-    updateStatus("녹화 중... (3초 후 자동 종료)");
+    select('#saveVideoBtn').html('...');
+    updateStatus(duration + "초 녹화 중...");
     
-    // 3초 후 자동 종료
     setTimeout(() => {
-        if (isRecording) {
-            stopRecording();
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
         }
-    }, 3000);
-}
-
-function stopRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        isRecording = false;
-        select('#saveVideoBtn').html('SAVE VIDEO');
-    }
+    }, duration * 1000);
 }
 
 function updateStatus(msg) {
