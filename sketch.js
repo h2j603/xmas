@@ -1,6 +1,7 @@
 let myFont;
 let img;
-let cachedPoints = [];
+let vertexPoints = [];
+let tiles = [];
 let zoom = 1.0;
 let offset;
 let isFontLoaded = false;
@@ -13,7 +14,7 @@ function setup() {
     
     offset = createVector(0, 0);
     
-    // 폰트 로드 (작동하는 URL)
+    // 폰트 로드
     const fontURL = 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf';
     myFont = loadFont(fontURL, 
         () => { 
@@ -26,9 +27,9 @@ function setup() {
     );
     
     // UI 이벤트
-    select('#convertBtn').mousePressed(generateCachedPoints);
+    select('#convertBtn').mousePressed(generateDisplay);
     select('#resizeBtn').mousePressed(updateCanvas);
-    select('#saveBtn').mousePressed(() => saveCanvas('AOYSTU_GEN', 'png'));
+    select('#saveBtn').mousePressed(() => saveCanvas('TEXT_MOSAIC', 'png'));
     select('#imageInput').changed(handleImage);
 }
 
@@ -47,76 +48,95 @@ function draw() {
     scale(zoom);
     translate(-width/2, -height/2);
 
-    if (cachedPoints.length === 0) {
+    if (!img) {
         fill(100);
         textAlign(CENTER, CENTER);
         text("1. SELECT PHOTO\n2. CLICK CONVERT", width/2, height/2);
-    }
-
-    for (let p of cachedPoints) {
-        noStroke();
-        fill(p.clr);
-        circle(p.x, p.y, p.size);
-
-        if (p.isDecor) {
-            stroke(select('#vertexColor').value());
-            strokeWeight(1);
-            noFill();
-            circle(p.x, p.y, p.size * 2.2);
-            noStroke();
-            fill(255);
-            textSize(9);
-            text(p.id, p.x + 7, p.y - 7);
+    } else if (tiles.length > 0) {
+        // 1. 작은 이미지들로 텍스트 모양 채우기
+        for (let t of tiles) {
+            image(img, t.x, t.y, t.size, t.size);
         }
+        
+        // 2. 꼭짓점에 원과 번호 표시
+        drawVertexMarkers();
     }
+    
     pop();
 }
 
-function generateCachedPoints() {
+function drawVertexMarkers() {
+    let vertexColor = select('#vertexColor').value();
+    
+    for (let i = 0; i < vertexPoints.length; i++) {
+        let p = vertexPoints[i];
+        
+        // 원 그리기
+        stroke(vertexColor);
+        strokeWeight(2);
+        noFill();
+        circle(p.x, p.y, 14);
+        
+        // 번호 표시
+        noStroke();
+        fill(vertexColor);
+        textFont('sans-serif');
+        textSize(10);
+        textAlign(LEFT, BOTTOM);
+        text(i + 1, p.x + 9, p.y - 5);
+    }
+}
+
+function generateDisplay() {
     if (!isFontLoaded || !myFont) {
         console.log("Font not ready");
         return;
     }
     
-    let txt = select('#textInput').value() || " ";
-    let fontSize = min(width, height) * 0.6;
-    
-    // 텍스트를 포인트로 변환
-    let pts = myFont.textToPoints(txt, width * 0.1, height * 0.65, fontSize, {
-        sampleFactor: 0.15, 
-        simplifyThreshold: 0
-    });
-    
-    console.log("Points generated:", pts.length);
-
-    // 이미지 픽셀 데이터 로드 확인
-    if (img) {
-        img.loadPixels();
+    if (!img) {
+        select('#info-text').html("이미지를 먼저 선택하세요!");
+        return;
     }
-
-    cachedPoints = pts.map((p, i) => {
-        let clr = [80, 80, 80]; // 기본 회색
-        
-        if (img && img.width > 0) {
-            // 캔버스 좌표를 이미지 좌표로 맵핑
-            let imgX = floor(map(p.x, 0, width, 0, img.width));
-            let imgY = floor(map(p.y, 0, height, 0, img.height));
-            
-            // 이미지 범위 안인지 체크 후 색상 추출
-            if (imgX >= 0 && imgX < img.width && imgY >= 0 && imgY < img.height) {
-                clr = img.get(imgX, imgY);
+    
+    let txt = select('#textInput').value() || "A";
+    let fontSize = min(width, height) * 0.75;
+    let tileSize = 8; // 작은 이미지 크기
+    
+    // 텍스트 중앙 정렬 위치 계산
+    let bounds = myFont.textBounds(txt, 0, 0, fontSize);
+    let startX = (width - bounds.w) / 2 - bounds.x;
+    let startY = (height + bounds.h) / 2 - bounds.y - bounds.h;
+    
+    // 텍스트 모양 마스크 생성 (어디에 타일을 놓을지 판단용)
+    let mask = createGraphics(width, height);
+    mask.background(0);
+    mask.fill(255);
+    mask.noStroke();
+    mask.textFont(myFont);
+    mask.textSize(fontSize);
+    mask.text(txt, startX, startY);
+    mask.loadPixels();
+    
+    // 타일 배치: 텍스트 영역 안에만 이미지 배치
+    tiles = [];
+    for (let y = 0; y < height; y += tileSize) {
+        for (let x = 0; x < width; x += tileSize) {
+            // 해당 위치가 텍스트 내부인지 확인 (흰색인지)
+            let idx = (floor(y) * width + floor(x)) * 4;
+            if (mask.pixels[idx] > 128) {
+                tiles.push({ x: x, y: y, size: tileSize });
             }
         }
-        
-        randomSeed(i);
-        return { 
-            x: p.x, y: p.y, clr: clr, 
-            isDecor: random(1) < 0.05, 
-            id: i, size: 5 
-        };
+    }
+    
+    // 꼭짓점 추출
+    vertexPoints = myFont.textToPoints(txt, startX, startY, fontSize, {
+        sampleFactor: 0.03,
+        simplifyThreshold: 1
     });
     
-    select('#info-text').html("CONVERTED: " + cachedPoints.length + " points");
+    console.log("Tiles:", tiles.length, "Vertices:", vertexPoints.length);
+    select('#info-text').html("타일 " + tiles.length + "개 / 꼭짓점 " + vertexPoints.length + "개");
 }
 
 function handleImage(e) {
@@ -134,7 +154,8 @@ function handleImage(e) {
 
 function updateCanvas() {
     resizeCanvas(parseInt(select('#canvasW').value()), parseInt(select('#canvasH').value()));
-    cachedPoints = [];
+    tiles = [];
+    vertexPoints = [];
 }
 
 // 인터랙션
