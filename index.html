@@ -9,13 +9,11 @@
 </head>
 <body>
     <div id="app">
-        <!-- 캔버스 전체화면 보기 -->
         <div id="fullscreen-view" class="hidden">
             <div id="canvas-holder"></div>
             <button id="closeFullscreen" class="close-btn">✕</button>
         </div>
 
-        <!-- 컨트롤 패널 -->
         <section id="controls">
             <div class="scroll-container">
                 <h1 class="title">TEXT MOSAIC</h1>
@@ -28,15 +26,6 @@
                 </div>
 
                 <div class="input-row">
-                    <div class="field">
-                        <label>FONT</label>
-                        <select id="fontSelect">
-                            <option value="roboto">Roboto</option>
-                            <option value="playfair">Playfair Display</option>
-                            <option value="bebas">Bebas Neue</option>
-                            <option value="pacifico">Pacifico</option>
-                        </select>
-                    </div>
                     <div class="field color-field">
                         <label>CANVAS</label>
                         <input type="color" id="bgColor" value="#000000">
