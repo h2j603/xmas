@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vertex Editor Pro</title>
+    <title>Vertex Editor - Debug Mode</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
 </head>
 <body>
     <div id="app">
-        <main id="view">
-            <div id="canvas-holder"></div>
-        </main>
-
+        <main id="view"><div id="canvas-holder"></div></main>
         <section id="controls">
             <div class="drag-handle"></div>
             <div class="scroll-container">
@@ -28,12 +25,16 @@
                 </div>
 
                 <div class="input-row">
+                    <button id="convertBtn" class="btn-ui primary-accent">CONVERT (변환)</button>
+                </div>
+
+                <div class="input-row">
                     <div class="field">
-                        <label>WIDTH</label>
+                        <label>W</label>
                         <input type="number" id="canvasW" value="360">
                     </div>
                     <div class="field">
-                        <label>HEIGHT</label>
+                        <label>H</label>
                         <input type="number" id="canvasH" value="400">
                     </div>
                     <button id="resizeBtn">SET</button>
@@ -42,10 +43,10 @@
                 <div class="input-row buttons">
                     <label for="imageInput" class="btn-ui">PHOTO SELECT</label>
                     <input type="file" id="imageInput" accept="image/*">
-                    <button id="saveBtn" class="btn-ui primary">SAVE IMAGE</button>
+                    <button id="saveBtn" class="btn-ui">SAVE IMAGE</button>
                 </div>
                 
-                <p class="status-msg">Pinch to Zoom / Drag to Pan</p>
+                <p id="info-text" class="status-msg">1. 사진 선택 -> 2. 변환 버튼 클릭</p>
                 <div class="safe-area-padding"></div>
             </div>
         </section>
