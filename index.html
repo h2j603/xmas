@@ -23,7 +23,7 @@
                 <div class="input-row">
                     <div class="field">
                         <label>TEXT (엔터로 줄바꿈)</label>
-                        <textarea id="textInput" rows="3">A</textarea>
+                        <textarea id="textInput" rows="2">A</textarea>
                     </div>
                 </div>
 
@@ -32,16 +32,12 @@
                         <label>CANVAS</label>
                         <input type="color" id="bgColor" value="#000000">
                     </div>
-                    <div class="field color-field">
-                        <label>LINE</label>
-                        <input type="color" id="lineColor" value="#FFFFFF">
-                    </div>
                 </div>
 
                 <div class="input-row">
                     <div class="field">
-                        <label>TEXT SIZE: <span id="fontSizeVal">75</span>%</label>
-                        <input type="range" id="fontSize" min="20" max="150" value="75">
+                        <label>TEXT SIZE: <span id="fontSizeVal">50</span>%</label>
+                        <input type="range" id="fontSize" min="5" max="150" value="50">
                     </div>
                 </div>
 
@@ -49,6 +45,27 @@
                     <div class="field">
                         <label>TILE SIZE: <span id="tileSizeVal">5</span>%</label>
                         <input type="range" id="tileSize" min="1" max="20" value="5">
+                    </div>
+                </div>
+
+                <div class="input-row triple">
+                    <div class="field">
+                        <label>장평: <span id="scaleXVal">100</span>%</label>
+                        <input type="range" id="scaleX" min="30" max="200" value="100">
+                    </div>
+                </div>
+
+                <div class="input-row triple">
+                    <div class="field">
+                        <label>자간: <span id="letterSpaceVal">0</span></label>
+                        <input type="range" id="letterSpace" min="-20" max="50" value="0">
+                    </div>
+                </div>
+
+                <div class="input-row triple">
+                    <div class="field">
+                        <label>행간: <span id="lineHeightVal">120</span>%</label>
+                        <input type="range" id="lineHeight" min="50" max="250" value="120">
                     </div>
                 </div>
 
@@ -83,7 +100,11 @@
                     <label for="imageInput" class="btn-ui">PHOTO</label>
                     <input type="file" id="imageInput" accept="image/*">
                     <button id="previewBtn" class="btn-ui">PREVIEW</button>
-                    <button id="saveBtn" class="btn-ui">SAVE</button>
+                </div>
+
+                <div class="input-row buttons">
+                    <button id="saveBtn" class="btn-ui">SAVE IMG</button>
+                    <button id="saveVideoBtn" class="btn-ui">SAVE VIDEO</button>
                 </div>
                 
                 <p id="info-text" class="status-msg">1. 사진 선택 → 2. 변환 → 3. 미리보기</p>
