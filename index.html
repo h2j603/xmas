@@ -3,30 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vertex Editor Lite</title>
+    <title>Vertex Editor Pro</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
 </head>
 <body>
     <div id="app">
-        <main id="view"><div id="canvas-holder"></div></main>
+        <main id="view">
+            <div id="canvas-holder"></div>
+        </main>
+
         <section id="controls">
             <div class="drag-handle"></div>
-            <div class="scroll-area">
+            <div class="scroll-container">
                 <div class="input-row">
-                    <input type="text" id="textInput" value="爀" placeholder="텍스트 입력">
-                    <input type="color" id="vertexColor" value="#00FF00">
+                    <div class="field">
+                        <label>TEXT</label>
+                        <input type="text" id="textInput" value="爀">
+                    </div>
+                    <div class="field color-field">
+                        <label>COLOR</label>
+                        <input type="color" id="vertexColor" value="#00FF00">
+                    </div>
                 </div>
+
                 <div class="input-row">
-                    <div class="num-input">W <input type="number" id="canvasW" value="360"></div>
-                    <div class="num-input">H <input type="number" id="canvasH" value="500"></div>
-                    <button id="resizeBtn">적용</button>
+                    <div class="field">
+                        <label>WIDTH</label>
+                        <input type="number" id="canvasW" value="360">
+                    </div>
+                    <div class="field">
+                        <label>HEIGHT</label>
+                        <input type="number" id="canvasH" value="400">
+                    </div>
+                    <button id="resizeBtn">SET</button>
                 </div>
-                <div class="input-row">
-                    <label for="imageInput" class="btn-ui">이미지 선택</label>
+
+                <div class="input-row buttons">
+                    <label for="imageInput" class="btn-ui">PHOTO SELECT</label>
                     <input type="file" id="imageInput" accept="image/*">
-                    <button id="saveBtn" class="btn-ui primary">저장하기</button>
+                    <button id="saveBtn" class="btn-ui primary">SAVE IMAGE</button>
                 </div>
+                
+                <p class="status-msg">Pinch to Zoom / Drag to Pan</p>
+                <div class="safe-area-padding"></div>
             </div>
         </section>
     </div>
