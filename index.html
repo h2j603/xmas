@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphic Vertex Editor</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+</head>
+<body>
+    <div id="editor-container">
+        <aside id="sidebar">
+            <h2>Editor</h2>
+            
+            <div class="control-group">
+                <label>Text Input</label>
+                <input type="text" id="textInput" value="AOYSTU">
+            </div>
+
+            <div class="control-group">
+                <label>Canvas Size (W x H)</label>
+                <div class="flex-row">
+                    <input type="number" id="canvasW" value="800">
+                    <input type="number" id="canvasH" value="600">
+                </div>
+                <button id="resizeBtn">Apply Size</button>
+            </div>
+
+            <div class="control-group">
+                <label>Decoration Color</label>
+                <input type="color" id="vertexColor" value="#ff0000">
+            </div>
+
+            <div class="control-group">
+                <label>Image Upload</label>
+                <input type="file" id="imageInput" accept="image/*">
+            </div>
+
+            <div class="control-group">
+                <button id="saveBtn">Save Image</button>
+                <p class="hint">Zoom: Mouse Wheel<br>Move: Mouse Drag</p>
+            </div>
+        </aside>
+
+        <main id="canvas-viewport">
+            <div id="canvas-holder"></div>
+        </main>
+    </div>
+    <script src="sketch.js"></script>
+</body>
+</html>
