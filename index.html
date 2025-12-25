@@ -9,10 +9,17 @@
 </head>
 <body>
     <div id="app">
-        <main id="view"><div id="canvas-holder"></div></main>
+        <!-- 캔버스 전체화면 보기 -->
+        <div id="fullscreen-view" class="hidden">
+            <div id="canvas-holder"></div>
+            <button id="closeFullscreen" class="close-btn">✕</button>
+        </div>
+
+        <!-- 컨트롤 패널 -->
         <section id="controls">
-            <div class="drag-handle"></div>
             <div class="scroll-container">
+                <h1 class="title">TEXT MOSAIC</h1>
+
                 <div class="input-row">
                     <div class="field">
                         <label>TEXT</label>
@@ -54,23 +61,24 @@
 
                 <div class="input-row">
                     <div class="field">
-                        <label>W</label>
+                        <label>CANVAS W</label>
                         <input type="number" id="canvasW" value="360">
                     </div>
                     <div class="field">
-                        <label>H</label>
+                        <label>CANVAS H</label>
                         <input type="number" id="canvasH" value="400">
                     </div>
                     <button id="resizeBtn">SET</button>
                 </div>
 
                 <div class="input-row buttons">
-                    <label for="imageInput" class="btn-ui">PHOTO SELECT</label>
+                    <label for="imageInput" class="btn-ui">PHOTO</label>
                     <input type="file" id="imageInput" accept="image/*">
-                    <button id="saveBtn" class="btn-ui">SAVE IMAGE</button>
+                    <button id="previewBtn" class="btn-ui">PREVIEW</button>
+                    <button id="saveBtn" class="btn-ui">SAVE</button>
                 </div>
                 
-                <p id="info-text" class="status-msg">1. 사진 선택 → 2. 변환 버튼</p>
+                <p id="info-text" class="status-msg">1. 사진 선택 → 2. 변환 → 3. 미리보기</p>
                 <div class="safe-area-padding"></div>
             </div>
         </section>
