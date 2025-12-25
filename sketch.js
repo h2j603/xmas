@@ -11,12 +11,21 @@ let showRotate = false;
 let showPulse = false;
 
 // 저장된 설정값
-let currentFontSize = 75;
+let currentFontSize = 50;
 let currentTileSize = 5;
+let currentScaleX = 100;
+let currentLetterSpace = 0;
+let currentLineHeight = 120;
 
 // 텍스트 중심점
 let textCenterX = 0;
 let textCenterY = 0;
+
+// 비디오 녹화
+let isRecording = false;
+let recordedFrames = [];
+let mediaRecorder = null;
+let recordedChunks = [];
 
 function setup() {
     const w = parseInt(select('#canvasW').value());
@@ -25,6 +34,8 @@ function setup() {
     canvas.parent('canvas-holder');
     
     offset = createVector(0, 0);
+    textCenterX = w / 2;
+    textCenterY = h / 2;
     
     const fontURL = 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf';
     myFont = loadFont(fontURL, 
@@ -41,6 +52,7 @@ function setup() {
     select('#convertBtn').mousePressed(generateDisplay);
     select('#resizeBtn').mousePressed(updateCanvas);
     select('#saveBtn').mousePressed(saveImage);
+    select('#saveVideoBtn').mousePressed(toggleRecording);
     select('#previewBtn').mousePressed(showPreview);
     select('#closeFullscreen').mousePressed(hidePreview);
     select('#imageInput').changed(handleImage);
@@ -51,6 +63,15 @@ function setup() {
     });
     select('#tileSize').input(() => {
         select('#tileSizeVal').html(select('#tileSize').value());
+    });
+    select('#scaleX').input(() => {
+        select('#scaleXVal').html(select('#scaleX').value());
+    });
+    select('#letterSpace').input(() => {
+        select('#letterSpaceVal').html(select('#letterSpace').value());
+    });
+    select('#lineHeight').input(() => {
+        select('#lineHeightVal').html(select('#lineHeight').value());
     });
     
     // 토글 버튼
@@ -79,7 +100,6 @@ function toggleClass(selector, isActive) {
 }
 
 function draw() {
-    // 배경색 적용
     let bgColor = select('#bgColor').value();
     background(bgColor);
     
@@ -92,7 +112,6 @@ function draw() {
     }
 
     push();
-    // 텍스트 중심 기준으로 변환
     translate(width/2, height/2);
     scale(zoom);
     translate(-textCenterX + offset.x, -textCenterY + offset.y);
@@ -101,55 +120,74 @@ function draw() {
         fill(100);
         textAlign(CENTER, CENTER);
         textFont('sans-serif');
-        text("1. SELECT PHOTO\n2. CLICK CONVERT", width/2, height/2);
+        text("1. SELECT PHOTO\n2. CLICK CONVERT", textCenterX, textCenterY);
     } else if (tiles.length > 0) {
-        // 거미줄 효과 (타일 뒤에)
         if (showWeb) {
             drawWebLines();
         }
-        
-        // 타일 그리기
         drawTiles();
     }
     
     pop();
+    
+    // 녹화 상태 표시
+    if (isRecording) {
+        fill(255, 0, 0);
+        noStroke();
+        ellipse(20, 20, 15, 15);
+        fill(255);
+        textSize(12);
+        textAlign(LEFT, CENTER);
+        text("REC", 35, 20);
+    }
 }
 
 function drawWebLines() {
-    let lineColor = select('#lineColor').value();
-    stroke(lineColor);
-    strokeWeight(0.5);
+    strokeWeight(0.8);
     
-    // 가까운 점들끼리 연결 (거미줄 효과)
-    let maxDist = min(width, height) * 0.08;
+    let maxDist = min(width, height) * 0.1;
     
     for (let i = 0; i < tiles.length; i++) {
         let t1 = tiles[i];
         
-        // 각 타일에서 가장 가까운 3~5개 점과 연결
         let connections = 0;
         for (let j = i + 1; j < tiles.length && connections < 4; j++) {
             let t2 = tiles[j];
             let d = dist(t1.x, t1.y, t2.x, t2.y);
             
             if (d < maxDist) {
-                // 거리에 따라 투명도 조절
+                // 이미지에서 색상 추출
+                let midX = (t1.x + t2.x) / 2;
+                let midY = (t1.y + t2.y) / 2;
+                let lineClr = getImageColor(midX, midY);
+                
                 let alpha = map(d, 0, maxDist, 200, 30);
-                stroke(red(color(lineColor)), green(color(lineColor)), blue(color(lineColor)), alpha);
+                stroke(red(lineClr), green(lineClr), blue(lineClr), alpha);
                 line(t1.x, t1.y, t2.x, t2.y);
                 connections++;
             }
         }
         
-        // 랜덤하게 먼 점과도 가끔 연결 (별자리 느낌)
         randomSeed(i * 100);
-        if (random(1) < 0.05) {
+        if (random(1) < 0.03) {
             let randomIdx = floor(random(tiles.length));
             let t2 = tiles[randomIdx];
-            stroke(red(color(lineColor)), green(color(lineColor)), blue(color(lineColor)), 50);
+            let lineClr = getImageColor(t1.x, t1.y);
+            stroke(red(lineClr), green(lineClr), blue(lineClr), 40);
             line(t1.x, t1.y, t2.x, t2.y);
         }
     }
+}
+
+function getImageColor(x, y) {
+    if (!img) return color(255);
+    
+    let imgX = floor(map(x, 0, width, 0, img.width));
+    let imgY = floor(map(y, 0, height, 0, img.height));
+    imgX = constrain(imgX, 0, img.width - 1);
+    imgY = constrain(imgY, 0, img.height - 1);
+    
+    return img.get(imgX, imgY);
 }
 
 function drawTiles() {
@@ -159,7 +197,6 @@ function drawTiles() {
         let t = tiles[i];
         let tileSize = baseTileSize;
         
-        // 펄스 효과
         if (showPulse) {
             let pulse = sin(frameCount * 0.05 + i * 0.3) * 0.3 + 1;
             tileSize *= pulse;
@@ -168,7 +205,6 @@ function drawTiles() {
         push();
         translate(t.x, t.y);
         
-        // 랜덤 회전 효과
         if (showRotate) {
             randomSeed(i);
             rotate(random(-0.4, 0.4));
@@ -190,55 +226,81 @@ function generateDisplay() {
         return;
     }
     
-    // textarea에서 텍스트 가져오기 (줄바꿈 포함)
     let txt = document.getElementById('textInput').value || "A";
     let lines = txt.split('\n');
     
     currentFontSize = parseInt(select('#fontSize').value());
     currentTileSize = parseInt(select('#tileSize').value());
+    currentScaleX = parseInt(select('#scaleX').value());
+    currentLetterSpace = parseInt(select('#letterSpace').value());
+    currentLineHeight = parseInt(select('#lineHeight').value());
     
     let fontSize = min(width, height) * (currentFontSize / 100);
-    
-    // sampleFactor를 타일 크기에 맞게 조절
     let density = map(currentTileSize, 1, 20, 0.5, 0.03);
     
     tiles = [];
     let allMinX = Infinity, allMaxX = -Infinity;
     let allMinY = Infinity, allMaxY = -Infinity;
     
-    // 각 줄별로 처리
-    let lineHeight = fontSize * 1.2;
-    let totalHeight = lines.length * lineHeight;
-    let startY = (height - totalHeight) / 2 + fontSize;
+    let lineHeightPx = fontSize * (currentLineHeight / 100);
+    let totalHeight = lines.length * lineHeightPx;
+    let startY = (height - totalHeight) / 2 + fontSize * 0.8;
     
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
         let lineTxt = lines[lineIdx];
         if (lineTxt.trim() === '') continue;
         
-        // 각 줄 중앙 정렬
-        let bounds = myFont.textBounds(lineTxt, 0, 0, fontSize);
-        let startX = (width - bounds.w) / 2 - bounds.x;
-        let y = startY + lineIdx * lineHeight;
+        // 자간 적용: 각 글자별로 처리
+        let chars = lineTxt.split('');
+        let totalWidth = 0;
         
-        // 윤곽선 포인트 추출
-        let outlinePoints = myFont.textToPoints(lineTxt, startX, y, fontSize, {
-            sampleFactor: density,
-            simplifyThreshold: 0
-        });
+        // 전체 너비 계산
+        for (let c = 0; c < chars.length; c++) {
+            let charBounds = myFont.textBounds(chars[c], 0, 0, fontSize);
+            totalWidth += charBounds.w * (currentScaleX / 100);
+            if (c < chars.length - 1) {
+                totalWidth += currentLetterSpace;
+            }
+        }
         
-        // 타일 추가
-        for (let p of outlinePoints) {
-            tiles.push({
-                x: p.x,
-                y: p.y,
-                index: tiles.length
+        let startX = (width - totalWidth) / 2;
+        let y = startY + lineIdx * lineHeightPx;
+        let currentX = startX;
+        
+        // 각 글자별로 포인트 추출
+        for (let c = 0; c < chars.length; c++) {
+            let char = chars[c];
+            if (char === ' ') {
+                currentX += fontSize * 0.3 * (currentScaleX / 100) + currentLetterSpace;
+                continue;
+            }
+            
+            let charBounds = myFont.textBounds(char, 0, 0, fontSize);
+            
+            let outlinePoints = myFont.textToPoints(char, 0, 0, fontSize, {
+                sampleFactor: density,
+                simplifyThreshold: 0
             });
             
-            // 전체 범위 계산
-            allMinX = min(allMinX, p.x);
-            allMaxX = max(allMaxX, p.x);
-            allMinY = min(allMinY, p.y);
-            allMaxY = max(allMaxY, p.y);
+            for (let p of outlinePoints) {
+                // 장평 적용
+                let scaledX = p.x * (currentScaleX / 100);
+                let finalX = currentX + scaledX;
+                let finalY = y + p.y;
+                
+                tiles.push({
+                    x: finalX,
+                    y: finalY,
+                    index: tiles.length
+                });
+                
+                allMinX = min(allMinX, finalX);
+                allMaxX = max(allMaxX, finalX);
+                allMinY = min(allMinY, finalY);
+                allMaxY = max(allMaxY, finalY);
+            }
+            
+            currentX += charBounds.w * (currentScaleX / 100) + currentLetterSpace;
         }
     }
     
@@ -247,11 +309,9 @@ function generateDisplay() {
         return;
     }
     
-    // 텍스트 중심점 계산
     textCenterX = (allMinX + allMaxX) / 2;
     textCenterY = (allMinY + allMaxY) / 2;
     
-    // 뷰 초기화 (중심에 맞추기)
     offset = createVector(0, 0);
     zoom = 1.0;
     
@@ -267,21 +327,80 @@ function hidePreview() {
 }
 
 function saveImage() {
-    // 저장 전 뷰 초기화 (중심 맞춤)
     let savedOffset = offset.copy();
     let savedZoom = zoom;
     offset = createVector(0, 0);
     zoom = 1.0;
     
-    // 한 프레임 그린 후 저장
     draw();
     saveCanvas('TEXT_MOSAIC', 'png');
     
-    // 뷰 복원
     offset = savedOffset;
     zoom = savedZoom;
     
     updateStatus("이미지 저장됨!");
+}
+
+function toggleRecording() {
+    if (!showPulse) {
+        updateStatus("PULSE 모드를 켜야 비디오 저장 가능!");
+        return;
+    }
+    
+    if (!isRecording) {
+        startRecording();
+    } else {
+        stopRecording();
+    }
+}
+
+function startRecording() {
+    let canvas = document.querySelector('#canvas-holder canvas');
+    let stream = canvas.captureStream(30);
+    
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    
+    mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+            recordedChunks.push(e.data);
+        }
+    };
+    
+    mediaRecorder.onstop = () => {
+        let blob = new Blob(recordedChunks, { type: 'video/webm' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'TEXT_MOSAIC.webm';
+        a.click();
+        URL.revokeObjectURL(url);
+        updateStatus("비디오 저장됨!");
+    };
+    
+    // 뷰 초기화
+    offset = createVector(0, 0);
+    zoom = 1.0;
+    
+    mediaRecorder.start();
+    isRecording = true;
+    select('#saveVideoBtn').html('STOP REC');
+    updateStatus("녹화 중... (3초 후 자동 종료)");
+    
+    // 3초 후 자동 종료
+    setTimeout(() => {
+        if (isRecording) {
+            stopRecording();
+        }
+    }, 3000);
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        select('#saveVideoBtn').html('SAVE VIDEO');
+    }
 }
 
 function updateStatus(msg) {
