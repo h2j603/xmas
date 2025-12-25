@@ -5,6 +5,7 @@ let tiles = [];
 let zoom = 1.0;
 let offset;
 let isFontLoaded = false;
+let debugMsg = "";
 
 function setup() {
     const w = parseInt(select('#canvasW').value());
@@ -14,19 +15,17 @@ function setup() {
     
     offset = createVector(0, 0);
     
-    // 폰트 로드
     const fontURL = 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf';
     myFont = loadFont(fontURL, 
         () => { 
             isFontLoaded = true; 
-            console.log("Font Ready"); 
+            debugMsg = "폰트 로드 완료";
         },
         (err) => { 
-            console.error("Font Load Error:", err);
+            debugMsg = "폰트 로드 실패";
         }
     );
     
-    // UI 이벤트
     select('#convertBtn').mousePressed(generateDisplay);
     select('#resizeBtn').mousePressed(updateCanvas);
     select('#saveBtn').mousePressed(() => saveCanvas('TEXT_MOSAIC', 'png'));
@@ -35,6 +34,13 @@ function setup() {
 
 function draw() {
     background(0);
+    
+    // 디버그 메시지 표시
+    fill(255, 255, 0);
+    textSize(10);
+    textAlign(LEFT, TOP);
+    textFont('sans-serif');
+    text(debugMsg, 10, 10);
     
     if (!isFontLoaded) {
         fill(255);
@@ -51,14 +57,15 @@ function draw() {
     if (!img) {
         fill(100);
         textAlign(CENTER, CENTER);
+        textFont('sans-serif');
         text("1. SELECT PHOTO\n2. CLICK CONVERT", width/2, height/2);
-    } else if (tiles.length > 0) {
-        // 1. 작은 이미지들로 텍스트 모양 채우기
+    } else {
+        // 타일 그리기
         for (let t of tiles) {
             image(img, t.x, t.y, t.size, t.size);
         }
         
-        // 2. 꼭짓점에 원과 번호 표시
+        // 꼭짓점 그리기
         drawVertexMarkers();
     }
     
@@ -71,13 +78,11 @@ function drawVertexMarkers() {
     for (let i = 0; i < vertexPoints.length; i++) {
         let p = vertexPoints[i];
         
-        // 원 그리기
         stroke(vertexColor);
         strokeWeight(2);
         noFill();
         circle(p.x, p.y, 14);
         
-        // 번호 표시
         noStroke();
         fill(vertexColor);
         textFont('sans-serif');
@@ -89,54 +94,70 @@ function drawVertexMarkers() {
 
 function generateDisplay() {
     if (!isFontLoaded || !myFont) {
-        console.log("Font not ready");
+        debugMsg = "에러: 폰트 없음";
         return;
     }
     
     if (!img) {
-        select('#info-text').html("이미지를 먼저 선택하세요!");
+        debugMsg = "에러: 이미지 없음";
         return;
     }
     
+    debugMsg = "변환 시작...";
+    
     let txt = select('#textInput').value() || "A";
     let fontSize = min(width, height) * 0.75;
-    let tileSize = 8;
+    let tileSize = 10;
     
-    // 텍스트 중앙 정렬 위치 계산
+    // 텍스트 위치 계산
     let bounds = myFont.textBounds(txt, 0, 0, fontSize);
     let startX = (width - bounds.w) / 2 - bounds.x;
     let startY = (height + bounds.h) / 2 - bounds.y - bounds.h;
     
-    // 텍스트 모양 마스크 생성
-    let mask = createGraphics(width, height);
-    mask.pixelDensity(1); // 중요! 픽셀 밀도 고정
-    mask.background(0);
-    mask.fill(255);
-    mask.noStroke();
-    mask.textFont(myFont);
-    mask.textSize(fontSize);
-    mask.text(txt, startX, startY);
+    debugMsg = "bounds: " + floor(bounds.w) + "x" + floor(bounds.h);
     
-    // 타일 배치: get()으로 색상 체크
-    tiles = [];
-    for (let y = 0; y < height; y += tileSize) {
-        for (let x = 0; x < width; x += tileSize) {
-            let c = mask.get(x + tileSize/2, y + tileSize/2);
-            // 흰색(255)에 가까우면 텍스트 내부
-            if (brightness(c) > 128) {
-                tiles.push({ x: x, y: y, size: tileSize });
-            }
-        }
-    }
+    // 꼭짓점 먼저 추출
+    let allPoints = myFont.textToPoints(txt, startX, startY, fontSize, {
+        sampleFactor: 0.2,
+        simplifyThreshold: 0
+    });
     
-    // 꼭짓점 추출
     vertexPoints = myFont.textToPoints(txt, startX, startY, fontSize, {
         sampleFactor: 0.03,
         simplifyThreshold: 1
     });
     
-    console.log("Tiles:", tiles.length, "Vertices:", vertexPoints.length);
+    // 텍스트 영역 찾기 (꼭짓점들의 범위 기반)
+    if (allPoints.length === 0) {
+        debugMsg = "에러: 포인트 추출 실패";
+        return;
+    }
+    
+    // 타일 배치 - 점들이 있는 영역 내부 채우기
+    tiles = [];
+    
+    // 각 타일 위치에서 텍스트 내부인지 확인
+    for (let y = 0; y < height; y += tileSize) {
+        for (let x = 0; x < width; x += tileSize) {
+            if (isInsideText(x + tileSize/2, y + tileSize/2, allPoints, tileSize * 2)) {
+                tiles.push({ x: x, y: y, size: tileSize });
+            }
+        }
+    }
+    
+    debugMsg = "타일:" + tiles.length + " 꼭짓점:" + vertexPoints.length;
     select('#info-text').html("타일 " + tiles.length + "개 / 꼭짓점 " + vertexPoints.length + "개");
+}
+
+// 점이 텍스트 내부에 있는지 확인 (근처에 윤곽선 점이 있는지)
+function isInsideText(px, py, points, threshold) {
+    for (let p of points) {
+        let d = dist(px, py, p.x, p.y);
+        if (d < threshold) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function handleImage(e) {
@@ -144,10 +165,13 @@ function handleImage(e) {
         let file = e.target.files[0];
         let url = URL.createObjectURL(file);
         
-        select('#info-text').html("LOADING IMAGE...");
+        debugMsg = "이미지 로딩중...";
         
         img = loadImage(url, () => {
+            debugMsg = "이미지 로드 완료: " + img.width + "x" + img.height;
             select('#info-text').html("IMAGE READY. CLICK CONVERT!");
+        }, () => {
+            debugMsg = "이미지 로드 실패";
         });
     }
 }
@@ -156,9 +180,9 @@ function updateCanvas() {
     resizeCanvas(parseInt(select('#canvasW').value()), parseInt(select('#canvasH').value()));
     tiles = [];
     vertexPoints = [];
+    debugMsg = "캔버스 리사이즈: " + width + "x" + height;
 }
 
-// 인터랙션
 function mouseWheel(event) { 
     if (mouseY < height) { 
         zoom -= event.delta * 0.001; 
