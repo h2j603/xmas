@@ -1,13 +1,9 @@
 let myFont;
 let img;
-let cachedPoints = []; // 최적화의 핵심: 좌표와 색상을 미리 계산해 저장
+let cachedPoints = [];
 let zoom = 1.0;
 let offset;
-
-function preload() {
-    // textToPoints 구동을 위한 최소한의 가벼운 폰트 로드
-    myFont = loadFont('https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/Roboto-Regular.ttf');
-}
+let isFontLoaded = false;
 
 function setup() {
     const w = parseInt(select('#canvasW').value());
@@ -17,24 +13,41 @@ function setup() {
     
     offset = createVector(0, 0);
     
+    // 폰트 로드 (콜백 방식 사용으로 로딩 멈춤 방지)
+    const fontURL = 'https://open-font-stack.s3.amazonaws.com/fonts/roboto/Roboto-Regular.ttf';
+    myFont = loadFont(fontURL, 
+        () => { isFontLoaded = true; generateCachedPoints(); },
+        () => { console.log("Font load failed, using default."); isFontLoaded = true; }
+    );
+    
     // UI 이벤트 바인딩
     select('#resizeBtn').mousePressed(updateCanvas);
-    select('#saveBtn').mousePressed(() => saveCanvas('output', 'png'));
+    select('#saveBtn').mousePressed(() => saveCanvas('AOYSTU_GEN', 'png'));
     select('#imageInput').changed(handleImage);
-    select('#textInput').input(generateCachedPoints); // 텍스트 입력 시 즉시 갱신
-    
-    generateCachedPoints();
+    select('#textInput').input(generateCachedPoints);
 }
 
 function draw() {
-    background(0);
+    background(10);
     
+    if (!isFontLoaded) {
+        fill(255);
+        textAlign(CENTER, CENTER);
+        text("LOADING ENGINE...", width/2, height/2);
+        return;
+    }
+
     push();
     translate(width/2 + offset.x, height/2 + offset.y);
     scale(zoom);
     translate(-width/2, -height/2);
 
-    // 연산 없이 저장된 점들만 빠르게 렌더링
+    if (cachedPoints.length === 0) {
+        fill(50);
+        textAlign(CENTER, CENTER);
+        text("UPLOAD IMAGE TO START", width/2, height/2);
+    }
+
     for (let p of cachedPoints) {
         noStroke();
         fill(p.clr);
@@ -45,42 +58,47 @@ function draw() {
             strokeWeight(1);
             noFill();
             circle(p.x, p.y, p.size * 2.5);
-            
             noStroke();
             fill(255);
             textSize(10);
-            text(p.id, p.x + 10, p.y);
+            text(p.id, p.x + 8, p.y);
         }
     }
     pop();
 }
 
-// 핵심 최적화 함수: 점의 좌표와 해당 위치의 색상을 미리 계산
 function generateCachedPoints() {
+    if (!isFontLoaded) return;
+    
     let txt = select('#textInput').value() || " ";
-    let pts = myFont.textToPoints(txt, width * 0.1, height * 0.6, width * 0.4, {
-        sampleFactor: 0.12, 
+    // 화면 크기에 맞춰 텍스트 크기 자동 조절
+    let fontSize = min(width, height) * 0.5;
+    
+    let pts = myFont.textToPoints(txt, width * 0.1, height * 0.6, fontSize, {
+        sampleFactor: 0.1,
         simplifyThreshold: 0
     });
 
     cachedPoints = pts.map((p, i) => {
-        let clr = [150, 150, 150]; // 기본 색상 (이미지 없을 때)
+        let clr = [60, 60, 60];
         if (img) {
             let imgX = map(p.x, 0, width, 0, img.width);
             let imgY = map(p.y, 0, height, 0, img.height);
             clr = img.get(imgX, imgY);
         }
-        
-        // 장식 여부를 미리 결정
         randomSeed(i);
-        let isDecor = random(1) < 0.05;
-
-        return { x: p.x, y: p.y, clr: clr, isDecor: isDecor, id: i, size: 5 };
+        return { 
+            x: p.x, y: p.y, clr: clr, 
+            isDecor: random(1) < 0.05, 
+            id: i, size: 5 
+        };
     });
 }
 
 function updateCanvas() {
-    resizeCanvas(parseInt(select('#canvasW').value()), parseInt(select('#canvasH').value()));
+    let w = parseInt(select('#canvasW').value());
+    let h = parseInt(select('#canvasH').value());
+    resizeCanvas(w, h);
     generateCachedPoints();
 }
 
@@ -90,11 +108,11 @@ function handleImage(e) {
     }
 }
 
-// 터치 및 마우스 인터랙션
+// 줌 및 드래그 (캔버스 영역에서만 작동하도록 제한)
 function mouseWheel(event) {
     if (mouseY < height) {
         zoom -= event.delta * 0.001;
-        zoom = constrain(zoom, 0.1, 10);
+        zoom = constrain(zoom, 0.1, 5);
         return false;
     }
 }
