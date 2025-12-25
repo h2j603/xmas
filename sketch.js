@@ -100,30 +100,30 @@ function generateDisplay() {
     
     let txt = select('#textInput').value() || "A";
     let fontSize = min(width, height) * 0.75;
-    let tileSize = 8; // 작은 이미지 크기
+    let tileSize = 8;
     
     // 텍스트 중앙 정렬 위치 계산
     let bounds = myFont.textBounds(txt, 0, 0, fontSize);
     let startX = (width - bounds.w) / 2 - bounds.x;
     let startY = (height + bounds.h) / 2 - bounds.y - bounds.h;
     
-    // 텍스트 모양 마스크 생성 (어디에 타일을 놓을지 판단용)
+    // 텍스트 모양 마스크 생성
     let mask = createGraphics(width, height);
+    mask.pixelDensity(1); // 중요! 픽셀 밀도 고정
     mask.background(0);
     mask.fill(255);
     mask.noStroke();
     mask.textFont(myFont);
     mask.textSize(fontSize);
     mask.text(txt, startX, startY);
-    mask.loadPixels();
     
-    // 타일 배치: 텍스트 영역 안에만 이미지 배치
+    // 타일 배치: get()으로 색상 체크
     tiles = [];
     for (let y = 0; y < height; y += tileSize) {
         for (let x = 0; x < width; x += tileSize) {
-            // 해당 위치가 텍스트 내부인지 확인 (흰색인지)
-            let idx = (floor(y) * width + floor(x)) * 4;
-            if (mask.pixels[idx] > 128) {
+            let c = mask.get(x + tileSize/2, y + tileSize/2);
+            // 흰색(255)에 가까우면 텍스트 내부
+            if (brightness(c) > 128) {
                 tiles.push({ x: x, y: y, size: tileSize });
             }
         }
