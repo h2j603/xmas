@@ -28,6 +28,15 @@
                 </div>
 
                 <div class="input-row">
+                    <div class="field">
+                        <label>FONT</label>
+                        <select id="fontSelect">
+                            <option value="roboto">Roboto</option>
+                            <option value="playfair">Playfair Display</option>
+                            <option value="bebas">Bebas Neue</option>
+                            <option value="pacifico">Pacifico</option>
+                        </select>
+                    </div>
                     <div class="field color-field">
                         <label>CANVAS</label>
                         <input type="color" id="bgColor" value="#000000">
@@ -48,21 +57,21 @@
                     </div>
                 </div>
 
-                <div class="input-row triple">
+                <div class="input-row">
                     <div class="field">
                         <label>장평: <span id="scaleXVal">100</span>%</label>
                         <input type="range" id="scaleX" min="30" max="200" value="100">
                     </div>
                 </div>
 
-                <div class="input-row triple">
+                <div class="input-row">
                     <div class="field">
                         <label>자간: <span id="letterSpaceVal">0</span></label>
                         <input type="range" id="letterSpace" min="-20" max="50" value="0">
                     </div>
                 </div>
 
-                <div class="input-row triple">
+                <div class="input-row">
                     <div class="field">
                         <label>행간: <span id="lineHeightVal">120</span>%</label>
                         <input type="range" id="lineHeight" min="50" max="250" value="120">
@@ -104,7 +113,10 @@
 
                 <div class="input-row buttons">
                     <button id="saveBtn" class="btn-ui">SAVE IMG</button>
-                    <button id="saveVideoBtn" class="btn-ui">SAVE VIDEO</button>
+                    <div class="field" style="flex: 0 0 60px;">
+                        <input type="number" id="videoDuration" value="3" min="1" max="30" style="padding: 14px 8px; text-align: center;">
+                    </div>
+                    <button id="saveVideoBtn" class="btn-ui">REC</button>
                 </div>
                 
                 <p id="info-text" class="status-msg">1. 사진 선택 → 2. 변환 → 3. 미리보기</p>
