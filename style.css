@@ -1,44 +1,72 @@
-:root {
-    --bg: #0b0b0b;
-    --ui-bg: #1a1a1a;
-    --border: #333;
-    --text: #fff;
-}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 body, html {
-    margin: 0; padding: 0; height: 100%;
-    background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    overflow: hidden;
+    margin: 0; padding: 0;
+    height: 100dvh; /* 모바일 동적 높이 대응 */
+    background: #000;
+    color: #fff;
+    font-family: sans-serif;
+    overflow: hidden; /* 전체 스크롤 방지 */
 }
 
-#app { display: flex; flex-direction: column; height: 100vh; }
-#view { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+#view {
+    flex: 6; /* 캔버스 비중 */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f0f0f;
+}
 
 #controls {
-    background: var(--ui-bg);
-    border-top: 1px solid var(--border);
-    padding: 15px; padding-bottom: env(safe-area-inset-bottom);
+    flex: 4; /* 컨트롤 영역 비중 */
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+    display: flex;
+    flex-direction: column;
 }
 
-.drag-handle { width: 30px; height: 3px; background: #444; margin: 0 auto 15px; border-radius: 2px; }
-.scroll-area { display: flex; flex-direction: column; gap: 10px; }
-.input-row { display: flex; gap: 8px; }
+.drag-handle {
+    width: 30px; height: 4px; background: #333;
+    margin: 10px auto; border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.scroll-container {
+    flex: 1;
+    overflow-y: auto; /* 하단 영역 내에서만 스크롤 발생 */
+    padding: 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.input-row { display: flex; gap: 10px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.field label { font-size: 10px; color: #777; font-weight: bold; }
 
 input[type="text"], input[type="number"], button {
-    background: #222; border: 1px solid var(--border);
-    color: #fff; padding: 12px; border-radius: 4px; flex: 1; font-size: 14px;
+    background: #252525; border: 1px solid #333;
+    color: #fff; padding: 12px; border-radius: 6px; font-size: 14px;
+    width: 100%;
 }
 
-.num-input {
-    display: flex; align-items: center; gap: 8px; background: #222;
-    border: 1px solid var(--border); padding-left: 10px; border-radius: 4px; flex: 1;
-}
-.num-input input { border: none; padding: 10px 5px; }
+.color-field { flex: 0 0 60px; }
+input[type="color"] { height: 43px; cursor: pointer; background: #252525; border: 1px solid #333; padding: 2px; }
 
 .btn-ui {
-    flex: 1; background: #333; border: 1px solid var(--border);
-    padding: 12px; text-align: center; border-radius: 4px; font-size: 13px; cursor: pointer;
+    flex: 1; background: #333; border: 1px solid #444;
+    padding: 14px; text-align: center; border-radius: 6px;
+    font-size: 13px; font-weight: bold; cursor: pointer;
 }
-.btn-ui.primary { background: #fff; color: #000; font-weight: bold; }
-input[type="file"] { display: none; }
+.btn-ui.primary { background: #fff; color: #000; }
+
+.status-msg { font-size: 11px; color: #555; text-align: center; margin: 10px 0; }
+.safe-area-padding { height: 40px; } /* iOS 하단바 여백 */
