@@ -14,6 +14,10 @@ let showPulse = false;
 let currentFontSize = 75;
 let currentTileSize = 5;
 
+// 텍스트 중심점
+let textCenterX = 0;
+let textCenterY = 0;
+
 function setup() {
     const w = parseInt(select('#canvasW').value());
     const h = parseInt(select('#canvasH').value());
@@ -88,9 +92,10 @@ function draw() {
     }
 
     push();
-    translate(width/2 + offset.x, height/2 + offset.y);
+    // 텍스트 중심 기준으로 변환
+    translate(width/2, height/2);
     scale(zoom);
-    translate(-width/2, -height/2);
+    translate(-textCenterX + offset.x, -textCenterY + offset.y);
 
     if (!img) {
         fill(100);
@@ -185,37 +190,70 @@ function generateDisplay() {
         return;
     }
     
-    let txt = select('#textInput').value() || "A";
+    // textarea에서 텍스트 가져오기 (줄바꿈 포함)
+    let txt = document.getElementById('textInput').value || "A";
+    let lines = txt.split('\n');
+    
     currentFontSize = parseInt(select('#fontSize').value());
     currentTileSize = parseInt(select('#tileSize').value());
     
     let fontSize = min(width, height) * (currentFontSize / 100);
-    let baseTileSize = min(width, height) * (currentTileSize / 100);
-    
-    // 텍스트 위치 계산
-    let bounds = myFont.textBounds(txt, 0, 0, fontSize);
-    let startX = (width - bounds.w) / 2 - bounds.x;
-    let startY = (height + bounds.h) / 2 - bounds.y - bounds.h;
     
     // sampleFactor를 타일 크기에 맞게 조절
     let density = map(currentTileSize, 1, 20, 0.5, 0.03);
     
-    // 윤곽선 포인트 추출
-    let outlinePoints = myFont.textToPoints(txt, startX, startY, fontSize, {
-        sampleFactor: density,
-        simplifyThreshold: 0
-    });
+    tiles = [];
+    let allMinX = Infinity, allMaxX = -Infinity;
+    let allMinY = Infinity, allMaxY = -Infinity;
     
-    if (outlinePoints.length === 0) {
+    // 각 줄별로 처리
+    let lineHeight = fontSize * 1.2;
+    let totalHeight = lines.length * lineHeight;
+    let startY = (height - totalHeight) / 2 + fontSize;
+    
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        let lineTxt = lines[lineIdx];
+        if (lineTxt.trim() === '') continue;
+        
+        // 각 줄 중앙 정렬
+        let bounds = myFont.textBounds(lineTxt, 0, 0, fontSize);
+        let startX = (width - bounds.w) / 2 - bounds.x;
+        let y = startY + lineIdx * lineHeight;
+        
+        // 윤곽선 포인트 추출
+        let outlinePoints = myFont.textToPoints(lineTxt, startX, y, fontSize, {
+            sampleFactor: density,
+            simplifyThreshold: 0
+        });
+        
+        // 타일 추가
+        for (let p of outlinePoints) {
+            tiles.push({
+                x: p.x,
+                y: p.y,
+                index: tiles.length
+            });
+            
+            // 전체 범위 계산
+            allMinX = min(allMinX, p.x);
+            allMaxX = max(allMaxX, p.x);
+            allMinY = min(allMinY, p.y);
+            allMaxY = max(allMaxY, p.y);
+        }
+    }
+    
+    if (tiles.length === 0) {
         updateStatus("에러: 포인트 추출 실패");
         return;
     }
     
-    tiles = outlinePoints.map((p, i) => ({
-        x: p.x,
-        y: p.y,
-        index: i
-    }));
+    // 텍스트 중심점 계산
+    textCenterX = (allMinX + allMaxX) / 2;
+    textCenterY = (allMinY + allMaxY) / 2;
+    
+    // 뷰 초기화 (중심에 맞추기)
+    offset = createVector(0, 0);
+    zoom = 1.0;
     
     updateStatus("타일 " + tiles.length + "개 생성됨");
 }
@@ -229,7 +267,20 @@ function hidePreview() {
 }
 
 function saveImage() {
+    // 저장 전 뷰 초기화 (중심 맞춤)
+    let savedOffset = offset.copy();
+    let savedZoom = zoom;
+    offset = createVector(0, 0);
+    zoom = 1.0;
+    
+    // 한 프레임 그린 후 저장
+    draw();
     saveCanvas('TEXT_MOSAIC', 'png');
+    
+    // 뷰 복원
+    offset = savedOffset;
+    zoom = savedZoom;
+    
     updateStatus("이미지 저장됨!");
 }
 
@@ -257,6 +308,8 @@ function updateCanvas() {
     tiles = [];
     offset = createVector(0, 0);
     zoom = 1.0;
+    textCenterX = width / 2;
+    textCenterY = height / 2;
     updateStatus("캔버스: " + width + "x" + height);
 }
 
@@ -270,7 +323,7 @@ function mouseWheel(event) {
 
 function mouseDragged() {
     if (!select('#fullscreen-view').hasClass('hidden')) {
-        offset.x += mouseX - pmouseX;
-        offset.y += mouseY - pmouseY;
+        offset.x += (mouseX - pmouseX) / zoom;
+        offset.y += (mouseY - pmouseY) / zoom;
     }
 }
