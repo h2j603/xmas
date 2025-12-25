@@ -4,11 +4,15 @@ let tiles = [];
 let zoom = 1.0;
 let offset;
 let isFontLoaded = false;
-let debugMsg = "";
+let isSaving = false;
 
 // 효과 토글
 let showLine = false;
 let showRotate = false;
+
+// 저장된 설정값
+let currentFontSize = 75;
+let currentTileSize = 12;
 
 function setup() {
     const w = parseInt(select('#canvasW').value());
@@ -22,17 +26,19 @@ function setup() {
     myFont = loadFont(fontURL, 
         () => { 
             isFontLoaded = true; 
-            debugMsg = "폰트 로드 완료";
+            updateStatus("폰트 로드 완료");
         },
         (err) => { 
-            debugMsg = "폰트 로드 실패";
+            updateStatus("폰트 로드 실패");
         }
     );
     
     // 버튼 이벤트
     select('#convertBtn').mousePressed(generateDisplay);
     select('#resizeBtn').mousePressed(updateCanvas);
-    select('#saveBtn').mousePressed(() => saveCanvas('TEXT_MOSAIC', 'png'));
+    select('#saveBtn').mousePressed(saveImage);
+    select('#previewBtn').mousePressed(showPreview);
+    select('#closeFullscreen').mousePressed(hidePreview);
     select('#imageInput').changed(handleImage);
     
     // 슬라이더 값 표시
@@ -66,16 +72,10 @@ function setup() {
 function draw() {
     background(0);
     
-    // 디버그 메시지
-    fill(255, 255, 0);
-    textSize(10);
-    textAlign(LEFT, TOP);
-    textFont('sans-serif');
-    text(debugMsg, 10, 10);
-    
     if (!isFontLoaded) {
         fill(255);
         textAlign(CENTER, CENTER);
+        textFont('sans-serif');
         text("LOADING FONT...", width/2, height/2);
         return;
     }
@@ -91,7 +91,7 @@ function draw() {
         textFont('sans-serif');
         text("1. SELECT PHOTO\n2. CLICK CONVERT", width/2, height/2);
     } else if (tiles.length > 0) {
-        // 연결선 그리기 (타일 뒤에)
+        // 연결선 그리기
         if (showLine) {
             drawConnectLines();
         }
@@ -117,42 +117,38 @@ function drawConnectLines() {
 }
 
 function drawTiles() {
-    let tileSize = parseInt(select('#tileSize').value());
-    
     for (let i = 0; i < tiles.length; i++) {
         let t = tiles[i];
         
         push();
         translate(t.x, t.y);
         
-        // 랜덤 회전 효과
         if (showRotate) {
             randomSeed(i);
             rotate(random(-0.3, 0.3));
         }
         
-        image(img, -tileSize/2, -tileSize/2, tileSize, tileSize);
+        image(img, -currentTileSize/2, -currentTileSize/2, currentTileSize, currentTileSize);
         pop();
     }
 }
 
 function generateDisplay() {
     if (!isFontLoaded || !myFont) {
-        debugMsg = "에러: 폰트 없음";
+        updateStatus("에러: 폰트 없음");
         return;
     }
     
     if (!img) {
-        debugMsg = "에러: 이미지 없음";
+        updateStatus("이미지를 먼저 선택하세요!");
         return;
     }
     
-    debugMsg = "변환 시작...";
-    
     let txt = select('#textInput').value() || "A";
-    let fontSizePercent = parseInt(select('#fontSize').value());
-    let fontSize = min(width, height) * (fontSizePercent / 100);
-    let tileSize = parseInt(select('#tileSize').value());
+    currentFontSize = parseInt(select('#fontSize').value());
+    currentTileSize = parseInt(select('#tileSize').value());
+    
+    let fontSize = min(width, height) * (currentFontSize / 100);
     
     // 텍스트 위치 계산
     let bounds = myFont.textBounds(txt, 0, 0, fontSize);
@@ -160,7 +156,7 @@ function generateDisplay() {
     let startY = (height + bounds.h) / 2 - bounds.y - bounds.h;
     
     // sampleFactor를 타일 크기에 맞게 조절
-    let density = map(tileSize, 4, 40, 0.4, 0.05);
+    let density = map(currentTileSize, 4, 40, 0.4, 0.05);
     
     // 윤곽선 포인트 추출
     let outlinePoints = myFont.textToPoints(txt, startX, startY, fontSize, {
@@ -169,19 +165,35 @@ function generateDisplay() {
     });
     
     if (outlinePoints.length === 0) {
-        debugMsg = "에러: 포인트 추출 실패";
+        updateStatus("에러: 포인트 추출 실패");
         return;
     }
     
-    // 타일 배열 생성
     tiles = outlinePoints.map((p, i) => ({
         x: p.x,
         y: p.y,
         index: i
     }));
     
-    debugMsg = "타일:" + tiles.length + "개";
-    select('#info-text').html("타일 " + tiles.length + "개 생성됨");
+    updateStatus("타일 " + tiles.length + "개 생성됨");
+}
+
+function showPreview() {
+    select('#fullscreen-view').removeClass('hidden');
+}
+
+function hidePreview() {
+    select('#fullscreen-view').addClass('hidden');
+}
+
+function saveImage() {
+    isSaving = true;
+    saveCanvas('TEXT_MOSAIC', 'png');
+    updateStatus("이미지 저장됨!");
+}
+
+function updateStatus(msg) {
+    select('#info-text').html(msg);
 }
 
 function handleImage(e) {
@@ -189,13 +201,12 @@ function handleImage(e) {
         let file = e.target.files[0];
         let url = URL.createObjectURL(file);
         
-        debugMsg = "이미지 로딩중...";
+        updateStatus("이미지 로딩중...");
         
         img = loadImage(url, () => {
-            debugMsg = "이미지: " + img.width + "x" + img.height;
-            select('#info-text').html("IMAGE READY. CLICK CONVERT!");
+            updateStatus("이미지 준비 완료! CONVERT 클릭");
         }, () => {
-            debugMsg = "이미지 로드 실패";
+            updateStatus("이미지 로드 실패");
         });
     }
 }
@@ -203,20 +214,23 @@ function handleImage(e) {
 function updateCanvas() {
     resizeCanvas(parseInt(select('#canvasW').value()), parseInt(select('#canvasH').value()));
     tiles = [];
-    debugMsg = "캔버스: " + width + "x" + height;
+    offset = createVector(0, 0);
+    zoom = 1.0;
+    updateStatus("캔버스: " + width + "x" + height);
 }
 
-function mouseWheel(event) { 
-    if (mouseY < height) { 
-        zoom -= event.delta * 0.001; 
-        zoom = constrain(zoom, 0.1, 5); 
-        return false; 
-    } 
+function mouseWheel(event) {
+    // 프리뷰 모드에서만 줌
+    if (!select('#fullscreen-view').hasClass('hidden')) {
+        zoom -= event.delta * 0.001;
+        zoom = constrain(zoom, 0.1, 5);
+        return false;
+    }
 }
 
-function mouseDragged() { 
-    if (mouseY < height) { 
-        offset.x += mouseX - pmouseX; 
-        offset.y += mouseY - pmouseY; 
-    } 
+function mouseDragged() {
+    if (!select('#fullscreen-view').hasClass('hidden')) {
+        offset.x += mouseX - pmouseX;
+        offset.y += mouseY - pmouseY;
+    }
 }
